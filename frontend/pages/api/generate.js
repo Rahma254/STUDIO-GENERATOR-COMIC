@@ -1,0 +1,54 @@
+// pages/api/generate.js
+
+export default async function handler(req, res) {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method Not Allowed' });
+  }
+
+  // Ambil data dari body request frontend
+  const { trigger, prompt, dialog, style } = req.body;
+
+  // **SANGAT PENTING**: Ambil API Key dari Environment Variable
+  // Jangan pernah menulis API key langsung di kode!
+  const AI_API_KEY = process.env.YOUR_AI_API_KEY;
+
+  if (!AI_API_KEY) {
+    return res.status(500).json({ error: 'AI API key is not configured.' });
+  }
+
+  // Buat prompt yang detail untuk AI
+  const finalPrompt = `A single comic book panel, in a ${style}. A character known as ${trigger}. The scene is: ${prompt}. Include a speech bubble with the text: "${dialog}". Make it cinematic and high quality.`;
+
+  try {
+    // Panggil API AI Pilihan Anda (contoh dengan DALL-E, ganti sesuai kebutuhan)
+    const aiResponse = await fetch('https://api.openai.com/v1/images/generations', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${AI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "dall-e-3", // Model yang bagus untuk konsistensi & detail
+        prompt: finalPrompt,
+        n: 1,
+        size: "1024x1024",
+      }),
+    });
+
+    if (!aiResponse.ok) {
+        const errorData = await aiResponse.json();
+        console.error('AI API Error:', errorData);
+        throw new Error('Failed to get a response from the AI.');
+    }
+
+    const aiData = await aiResponse.json();
+    const imageUrl = aiData.data[0].url;
+
+    // Kirim URL gambar kembali ke frontend
+    res.status(200).json({ imageUrl: imageUrl });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: error.message || 'An internal server error occurred.' });
+  }
+}
